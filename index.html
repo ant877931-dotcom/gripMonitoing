@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Hand Grip Monitoring</title>
+    <meta name="description" content="Sistem monitoring kekuatan genggaman tangan (Hand Grip) secara real-time.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>Grip Monitor</h1>
+            </div>
+            <div class="connection-status" id="connection-status">
+                <span class="status-indicator"></span>
+                <span class="status-text">Disconnected</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Sidebar / Patient Info -->
+            <aside class="patient-sidebar">
+                <h2>Informasi Pasien</h2>
+                <div class="form-group">
+                    <label for="patient-id">ID Pasien</label>
+                    <input type="text" id="patient-id" value="patient_001" placeholder="Misal: patient_001">
+                </div>
+                <div class="form-group">
+                    <label for="patient-name">Nama Lengkap</label>
+                    <input type="text" id="patient-name" placeholder="Masukkan nama pasien">
+                </div>
+                <div class="form-group">
+                    <label for="patient-age">Usia</label>
+                    <input type="number" id="patient-age" placeholder="Usia pasien">
+                </div>
+                <div class="form-group">
+                    <label for="patient-job">Status Pekerjaan</label>
+                    <input type="text" id="patient-job" placeholder="Pekerjaan">
+                </div>
+                
+                <button class="btn-primary" id="btn-save-session">Simpan Sesi</button>
+            </aside>
+
+            <!-- Dashboard Core -->
+            <section class="dashboard">
+                <div class="dashboard-grid">
+                    <!-- Right Hand Gauge -->
+                    <div class="card gauge-card">
+                        <h3>Tangan Kanan</h3>
+                        <div class="gauge-circle" id="right-gauge">
+                            <span class="gauge-value" id="right-value">0.0</span>
+                            <span class="gauge-unit">kg</span>
+                        </div>
+                    </div>
+
+                    <!-- Left Hand Gauge -->
+                    <div class="card gauge-card">
+                        <h3>Tangan Kiri</h3>
+                        <div class="gauge-circle" id="left-gauge">
+                            <span class="gauge-value" id="left-value">0.0</span>
+                            <span class="gauge-unit">kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Results -->
+                <div class="analysis-section">
+                    <div class="card analysis-card">
+                        <h3>Hasil Analisis</h3>
+                        <div class="analysis-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Persentase Asimetri</span>
+                                <span class="stat-value" id="asymmetry-value">0%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Status</span>
+                                <span class="stat-value badge" id="status-badge">Menunggu Data...</span>
+                            </div>
+                        </div>
+                        <div class="recommendation-box">
+                            <h4>Rekomendasi</h4>
+                            <p id="recommendation-text">Menunggu data genggaman untuk memberikan rekomendasi.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="history-section">
+                    <div class="card history-card">
+                        <div class="card-header">
+                            <h3>Riwayat Pengukuran</h3>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tanggal & Waktu</th>
+                                        <th>Nama</th>
+                                        <th>Tangan Kanan</th>
+                                        <th>Tangan Kiri</th>
+                                        <th>Asimetri</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-body">
+                                    <tr>
+                                        <td colspan="6" class="text-center">Memuat riwayat data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/presentation/app.js"></script>
+</body>
+</html>
