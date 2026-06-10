@@ -1,187 +1,128 @@
+import { listenToRealtime, listenToHistory, saveSession } from '../data/repository.js';
 import { 
     calculateAsymmetryPercentage, 
     getIdentificationStatus, 
-    getTreatmentRecommendation 
-} from "../domain/gripUseCase.js";
+    getTreatmentRecommendation,
+    getNormalGripByAge
+} from '../domain/gripUseCase.js';
 
-import { 
-    listenToRealtime, 
-    saveSession, 
-    listenToHistory 
-} from "../data/repository.js";
+const PATIENT_ID = "patient_001";
+let currentRealtimeData = { left: 0, right: 0 };
+let gripChartInstance = null;
 
 // DOM Elements
-const patientIdInput = document.getElementById("patient-id");
-const patientNameInput = document.getElementById("patient-name");
-const patientAgeInput = document.getElementById("patient-age");
-const patientJobInput = document.getElementById("patient-job");
-const btnSaveSession = document.getElementById("btn-save-session");
+const elLeft = document.getElementById('val-left');
+const elRight = document.getElementById('val-right');
+const elAsym = document.getElementById('val-asymmetry');
+const elStatus = document.getElementById('val-status');
+const elRecom = document.getElementById('val-recommendation');
+const elConn = document.getElementById('connection-status');
+const btnSave = document.getElementById('btn-save');
+const historyBody = document.getElementById('history-body');
 
-const connectionStatusWrapper = document.getElementById("connection-status");
-const connectionStatusText = connectionStatusWrapper.querySelector(".status-text");
+// Chart Render Function
+function renderChart(historyData) {
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    if (gripChartInstance) gripChartInstance.destroy();
 
-const leftValueEl = document.getElementById("left-value");
-const rightValueEl = document.getElementById("right-value");
-
-const asymmetryValueEl = document.getElementById("asymmetry-value");
-const statusBadgeEl = document.getElementById("status-badge");
-const recommendationTextEl = document.getElementById("recommendation-text");
-
-const historyBodyEl = document.getElementById("history-body");
-
-// State
-let currentPatientId = "";
-let currentLeftGrip = 0;
-let currentRightGrip = 0;
-let currentAsymmetry = 0;
-let currentStatus = "";
-
-let realtimeUnsubscribe = null;
-let historyUnsubscribe = null;
-
-// Initialize
-function init() {
-    btnSaveSession.addEventListener("click", handleSaveSession);
-    patientIdInput.addEventListener("change", handlePatientIdChange);
-    
-    // Auto-connect with default ID on load
-    handlePatientIdChange();
-}
-
-// Handle Patient ID change to reconnect streams
-function handlePatientIdChange() {
-    const newPatientId = patientIdInput.value.trim();
-    if (!newPatientId) return;
-
-    if (currentPatientId === newPatientId) return; // No change
-
-    // Cleanup previous listeners if any
-    if (realtimeUnsubscribe) realtimeUnsubscribe();
-    if (historyUnsubscribe) historyUnsubscribe();
-
-    currentPatientId = newPatientId;
-
-    // Start listening to real-time data
-    realtimeUnsubscribe = listenToRealtime(currentPatientId, updateRealtimeUI);
-    
-    // Start listening to history data
-    historyUnsubscribe = listenToHistory(currentPatientId, updateHistoryTable);
-}
-
-// Update UI with real-time data
-function updateRealtimeUI(data) {
-    if (!data) return;
-
-    currentLeftGrip = data.left_grip_kg || 0;
-    currentRightGrip = data.right_grip_kg || 0;
-    const deviceStatus = data.device_status || "disconnected";
-
-    // Update Gauges
-    leftValueEl.textContent = currentLeftGrip.toFixed(1);
-    rightValueEl.textContent = currentRightGrip.toFixed(1);
-
-    // Update Status Indicator
-    if (deviceStatus === "connected") {
-        connectionStatusText.textContent = "Connected";
-        connectionStatusWrapper.className = "connection-status connected";
-    } else {
-        connectionStatusText.textContent = "Disconnected";
-        connectionStatusWrapper.className = "connection-status";
-    }
-
-    // Process Business Logic
-    currentAsymmetry = calculateAsymmetryPercentage(currentRightGrip, currentLeftGrip);
-    currentStatus = getIdentificationStatus(currentAsymmetry);
-    const recommendation = getTreatmentRecommendation(currentRightGrip, currentLeftGrip, currentAsymmetry);
-
-    // Update Analysis UI
-    asymmetryValueEl.textContent = `${currentAsymmetry.toFixed(1)}%`;
-    statusBadgeEl.textContent = currentStatus;
-    
-    if (currentAsymmetry > 10) {
-        statusBadgeEl.className = "stat-value badge warning";
-    } else {
-        statusBadgeEl.className = "stat-value badge normal";
-    }
-
-    recommendationTextEl.textContent = recommendation;
-}
-
-// Save Session Handler
-async function handleSaveSession(e) {
-    e.preventDefault();
-
-    if (!currentPatientId) {
-        alert("ID Pasien tidak boleh kosong.");
-        return;
-    }
-
-    const patientData = {
-        name: patientNameInput.value.trim(),
-        age: parseInt(patientAgeInput.value.trim(), 10) || 0,
-        job: patientJobInput.value.trim()
-    };
-
-    if (!patientData.name) {
-        alert("Harap lengkapi nama pasien.");
-        return;
-    }
-
-    const sessionData = {
-        timestamp: Date.now(),
-        patient: patientData,
-        left_grip_kg: currentLeftGrip,
-        right_grip_kg: currentRightGrip,
-        asymmetry_percentage: currentAsymmetry,
-        status: currentStatus
-    };
-
-    try {
-        btnSaveSession.disabled = true;
-        btnSaveSession.textContent = "Menyimpan...";
-        await saveSession(currentPatientId, sessionData);
-        // Optional: show a small toast or just reset button text
-    } catch (error) {
-        console.error("Error saving session:", error);
-        alert("Gagal menyimpan sesi. Periksa koneksi Anda.");
-    } finally {
-        btnSaveSession.disabled = false;
-        btnSaveSession.textContent = "Simpan Sesi";
-    }
-}
-
-// Update History Table UI
-function updateHistoryTable(historyData) {
-    if (!historyData || historyData.length === 0) {
-        historyBodyEl.innerHTML = `<tr><td colspan="6" class="text-center">Belum ada riwayat data.</td></tr>`;
-        return;
-    }
-
-    historyBodyEl.innerHTML = ""; // Clear existing rows
+    const labels = [];
+    const leftData = [];
+    const rightData = [];
+    const baselineData = [];
 
     historyData.forEach(record => {
-        const date = new Date(record.timestamp);
-        const formattedDate = `${date.toLocaleDateString('id-ID')} ${date.toLocaleTimeString('id-ID')}`;
-        const patientName = record.patient?.name || "-";
-        
-        const tr = document.createElement("tr");
-        
-        // Status formatting
-        const isWarning = record.asymmetry_percentage > 10;
-        const statusColor = isWarning ? "var(--warning-color)" : "var(--primary-color)";
-        const statusHtml = `<span style="color: ${statusColor}; font-weight: 600;">${record.status}</span>`;
+        const d = new Date(record.timestamp);
+        labels.push(`${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`);
+        leftData.push(record.left_grip_kg);
+        rightData.push(record.right_grip_kg);
+        const age = record.patient_info?.age || 20;
+        baselineData.push(getNormalGripByAge(age));
+    });
 
-        tr.innerHTML = `
-            <td>${formattedDate}</td>
-            <td>${patientName}</td>
-            <td>${record.right_grip_kg.toFixed(1)}</td>
-            <td>${record.left_grip_kg.toFixed(1)}</td>
-            <td>${record.asymmetry_percentage.toFixed(1)}%</td>
-            <td>${statusHtml}</td>
-        `;
-        historyBodyEl.appendChild(tr);
+    gripChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Tangan Kiri (Kg)', data: leftData, borderColor: '#1976D2', backgroundColor: 'rgba(25, 118, 210, 0.1)', borderWidth: 2, tension: 0.3, fill: true },
+                { label: 'Tangan Kanan (Kg)', data: rightData, borderColor: '#2E7D32', backgroundColor: 'rgba(46, 125, 50, 0.1)', borderWidth: 2, tension: 0.3, fill: true },
+                { label: 'Standar Normal Umur (Kg)', data: baselineData, borderColor: '#000000', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
     });
 }
 
-// Boot up
-init();
+// 1. Listen to Realtime Data
+listenToRealtime(PATIENT_ID, (data) => {
+    currentRealtimeData.left = data.left_grip_kg || 0;
+    currentRealtimeData.right = data.right_grip_kg || 0;
+
+    elLeft.innerHTML = `${currentRealtimeData.left} <small>Kg</small>`;
+    elRight.innerHTML = `${currentRealtimeData.right} <small>Kg</small>`;
+
+    if (data.device_status === 'connected') {
+        elConn.textContent = "Alat Terhubung";
+        elConn.className = "status-badge connected";
+    } else {
+        elConn.textContent = "Alat Terputus";
+        elConn.className = "status-badge disconnected";
+    }
+
+    const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
+    const idStatus = getIdentificationStatus(asymPercent);
+    const treatment = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asymPercent);
+
+    elAsym.textContent = `${asymPercent}%`;
+    elStatus.textContent = idStatus;
+    elRecom.textContent = treatment;
+});
+
+// 2. Listen to History Data & Update Table/Chart
+listenToHistory(PATIENT_ID, (historyData) => {
+    historyBody.innerHTML = '';
+    
+    // Sort descending (terbaru di atas) untuk tabel
+    const sortedData = [...historyData].sort((a, b) => b.timestamp - a.timestamp);
+    
+    sortedData.forEach(item => {
+        const d = new Date(item.timestamp);
+        const timeStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes()}`;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${timeStr}</td>
+            <td>${item.left_grip_kg}</td>
+            <td>${item.right_grip_kg}</td>
+            <td>${item.asymmetry_percentage}%</td>
+            <td>${item.status}</td>
+        `;
+        historyBody.appendChild(tr);
+    });
+
+    // Render chart menggunakan data ascending (waktu normal kiri ke kanan)
+    renderChart(historyData);
+});
+
+// 3. Save Session Action
+btnSave.addEventListener('click', () => {
+    const name = document.getElementById('patient-name').value || "Anonim";
+    const age = document.getElementById('patient-age').value || "20";
+    const job = document.getElementById('patient-job').value || "-";
+
+    const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
+    const idStatus = getIdentificationStatus(asymPercent);
+
+    const payload = {
+        patient_info: { name, age, job },
+        left_grip_kg: currentRealtimeData.left,
+        right_grip_kg: currentRealtimeData.right,
+        asymmetry_percentage: parseFloat(asymPercent),
+        status: idStatus,
+        timestamp: Date.now()
+    };
+
+    saveSession(PATIENT_ID, payload)
+        .then(() => alert("Data sesi berhasil disimpan!"))
+        .catch((error) => console.error("Gagal menyimpan:", error));
+});
