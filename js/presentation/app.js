@@ -15,6 +15,9 @@ let peakData = { left: 0, right: 0 };
 let globalHistoryData = [];
 let currentSearchId = ""; 
 
+// ---> INI BARIS YANG SEMPAT HILANG <---
+let gripChartInstance = null; 
+
 const elLeft = document.getElementById('val-left');
 const elRight = document.getElementById('val-right');
 const elAsym = document.getElementById('val-asymmetry');
@@ -22,11 +25,13 @@ const elStatus = document.getElementById('val-status');
 const elRecom = document.getElementById('val-recommendation');
 const elConn = document.getElementById('connection-status');
 const btnSave = document.getElementById('btn-save');
-const btnResetWeb = document.getElementById('btn-reset-web'); // Binding tombol baru
+const btnResetWeb = document.getElementById('btn-reset-web');
 const historyBody = document.getElementById('history-body');
 
 function renderChart(historyData) {
     const ctx = document.getElementById('historyChart').getContext('2d');
+    
+    // Sekarang tidak akan error lagi di baris ini
     if (gripChartInstance) gripChartInstance.destroy();
 
     const labels = [];
@@ -100,7 +105,6 @@ function renderFilteredData() {
     }
 }
 
-// Fungsi Reset UI ke Nol
 function resetDashboardUI() {
     peakData.left = 0;
     peakData.right = 0;
@@ -123,11 +127,9 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
     currentRealtimeData.left = data.left_grip_kg || 0;
     currentRealtimeData.right = data.right_grip_kg || 0;
 
-    // LOGIKA PEAK-HOLD: Hanya kunci angka jika lebih besar dari angka sebelumnya
     if (currentRealtimeData.left > peakData.left) peakData.left = currentRealtimeData.left;
     if (currentRealtimeData.right > peakData.right) peakData.right = currentRealtimeData.right;
 
-    // Selalu tampilkan angka TERTINGGI (peakData) ke layar, bukan live data
     elLeft.textContent = peakData.left.toFixed(1);
     elRight.textContent = peakData.right.toFixed(1);
 
@@ -144,14 +146,12 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
         elConn.textContent = "Alat Terputus"; elConn.className = "status-badge disconnected";
     }
 
-    // Kalkulasi Rekomendasi berdasarkan angka puncak yang terkunci
     const asym = calculateAsymmetryPercentage(peakData.right, peakData.left);
     elAsym.textContent = `${asym}%`;
     elStatus.textContent = getIdentificationStatus(asym);
     elRecom.textContent = getTreatmentRecommendation(peakData.right, peakData.left, asym);
 });
 
-// Aksi Tombol Reset Manual
 btnResetWeb.onclick = () => {
     if(confirm("Apakah Anda yakin ingin membatalkan angka saat ini dan mengulang pengukuran?")) {
         resetDashboardUI();
@@ -175,8 +175,8 @@ btnSave.onclick = () => {
 
     const payload = {
         patient_info: { name, age, job },
-        left_grip_kg: peakData.left,     // Simpan angka puncaknya
-        right_grip_kg: peakData.right,   // Simpan angka puncaknya
+        left_grip_kg: peakData.left,
+        right_grip_kg: peakData.right,
         asymmetry_percentage: parseFloat(asym),
         status: getIdentificationStatus(asym),
         timestamp: Date.now()
@@ -191,10 +191,7 @@ btnSave.onclick = () => {
             document.getElementById('patient-age').value = '';
             document.getElementById('patient-job').value = '';
             
-            // Hapus hasil tangkapan di web
             resetDashboardUI();
-            
-            // Hapus sisa data live di server
             clearRealtimeData(HARDWARE_CHANNEL).catch(err => console.error(err));
             
             document.getElementById('search-db-id').value = "";
