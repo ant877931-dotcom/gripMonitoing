@@ -76,7 +76,7 @@ body {
 }
 .form-group input:focus { border-color: var(--primary-green); }
 
-/* Speedometer Analog Layout (Pure CSS) */
+/* Speedometer CSS */
 .gauges {
     display: flex;
     justify-content: space-around;
@@ -145,7 +145,6 @@ body {
 }
 .btn-primary:hover { background-color: #1565C0; }
 
-/* Fitur Pencarian Layout */
 .search-container {
     display: flex;
     flex-wrap: wrap;
@@ -167,7 +166,6 @@ body {
 }
 .btn-secondary:hover { background-color: #333333; }
 
-/* Wrapper Grafik Chart.js */
 .chart-wrapper { padding: 20px; width: 100%; border-bottom: 1px solid var(--border-color); }
 .chart-wrapper canvas { width: 100% !important; max-height: 280px; }
 
