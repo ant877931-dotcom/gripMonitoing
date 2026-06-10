@@ -6,7 +6,10 @@ import {
     getNormalGripByAge
 } from '../domain/gripUseCase.js';
 
-const PATIENT_ID = "patient_001";
+// Catatan: ESP32 mengirim data realtime ke path "patient_001". 
+// Kita anggap ini sebagai "ID Channel Alat/Hardware Aktif"
+const ESP32_CHANNEL = "patient_001"; 
+
 let currentRealtimeData = { left: 0, right: 0 };
 let gripChartInstance = null;
 
@@ -20,7 +23,7 @@ const elConn = document.getElementById('connection-status');
 const btnSave = document.getElementById('btn-save');
 const historyBody = document.getElementById('history-body');
 
-// Chart Render Function
+// Fungsi Render Grafik (Chart.js)
 function renderChart(historyData) {
     const ctx = document.getElementById('historyChart').getContext('2d');
     if (gripChartInstance) gripChartInstance.destroy();
@@ -53,52 +56,9 @@ function renderChart(historyData) {
     });
 }
 
-// 1. Listen to Realtime Data
-// Ganti blok listenToRealtime di dalam js/presentation/app.js
-
-listenToRealtime(PATIENT_ID, (data) => {
-    currentRealtimeData.left = data.left_grip_kg || 0;
-    currentRealtimeData.right = data.right_grip_kg || 0;
-
-    // 1. Update Teks Nilai
-    elLeft.textContent = currentRealtimeData.left.toFixed(1);
-    elRight.textContent = currentRealtimeData.right.toFixed(1);
-
-    // 2. Kalkulasi Rotasi Speedometer (Asumsi nilai maksimal alat adalah 100 Kg)
-    const MAX_GRIP = 100; // Ubah angka ini jika spesifikasi maksimal load cell Anda berbeda
-    
-    // Formula CSS: -135deg (0%) sampai 45deg (100%) = Rentang 180 derajat
-    const leftRotation = Math.min((currentRealtimeData.left / MAX_GRIP) * 180 - 135, 45);
-    const rightRotation = Math.min((currentRealtimeData.right / MAX_GRIP) * 180 - 135, 45);
-
-    // 3. Aplikasikan Animasi CSS
-    document.getElementById('gauge-fill-left').style.transform = `rotate(${leftRotation}deg)`;
-    document.getElementById('gauge-fill-right').style.transform = `rotate(${rightRotation}deg)`;
-
-    // 4. Update Status Koneksi
-    if (data.device_status === 'connected') {
-        elConn.textContent = "Alat Terhubung";
-        elConn.className = "status-badge connected";
-    } else {
-        elConn.textContent = "Alat Terputus";
-        elConn.className = "status-badge disconnected";
-    }
-
-    // 5. Update Analisis Asimetri
-    const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
-    const idStatus = getIdentificationStatus(asymPercent);
-    const treatment = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asymPercent);
-
-    elAsym.textContent = `${asymPercent}%`;
-    elStatus.textContent = idStatus;
-    elRecom.textContent = treatment;
-});
-
-// 2. Listen to History Data & Update Table/Chart
-listenToHistory(PATIENT_ID, (historyData) => {
+// Fungsi Update Tabel & Panggil Render Grafik
+function updateHistoryUI(historyData) {
     historyBody.innerHTML = '';
-    
-    // Sort descending (terbaru di atas) untuk tabel
     const sortedData = [...historyData].sort((a, b) => b.timestamp - a.timestamp);
     
     sortedData.forEach(item => {
@@ -116,23 +76,56 @@ listenToHistory(PATIENT_ID, (historyData) => {
         historyBody.appendChild(tr);
     });
 
-    // Render chart menggunakan data ascending (waktu normal kiri ke kanan)
     renderChart(historyData);
+}
+
+// 1. Listen to Realtime Data dari Hardware
+listenToRealtime(ESP32_CHANNEL, (data) => {
+    currentRealtimeData.left = data.left_grip_kg || 0;
+    currentRealtimeData.right = data.right_grip_kg || 0;
+
+    elLeft.textContent = currentRealtimeData.left.toFixed(1);
+    elRight.textContent = currentRealtimeData.right.toFixed(1);
+
+    const MAX_GRIP = 100; 
+    const leftRotation = Math.min((currentRealtimeData.left / MAX_GRIP) * 180 - 135, 45);
+    const rightRotation = Math.min((currentRealtimeData.right / MAX_GRIP) * 180 - 135, 45);
+
+    document.getElementById('gauge-fill-left').style.transform = `rotate(${leftRotation}deg)`;
+    document.getElementById('gauge-fill-right').style.transform = `rotate(${rightRotation}deg)`;
+
+    if (data.device_status === 'connected') {
+        elConn.textContent = "Alat Terhubung";
+        elConn.className = "status-badge connected";
+    } else {
+        elConn.textContent = "Alat Terputus";
+        elConn.className = "status-badge disconnected";
+    }
+
+    const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
+    const idStatus = getIdentificationStatus(asymPercent);
+    const treatment = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asymPercent);
+
+    elAsym.textContent = `${asymPercent}%`;
+    elStatus.textContent = idStatus;
+    elRecom.textContent = treatment;
 });
 
-// 3. Save Session Action
-btnSave.addEventListener('click', () => {
-    // Ambil nilai dan gunakan trim() untuk menghapus spasi kosong di awal/akhir
+// 2. Save Session Action (Menggunakan .onclick untuk membersihkan cache event listener)
+btnSave.onclick = () => {
     const name = document.getElementById('patient-name').value.trim();
     const age = document.getElementById('patient-age').value.trim();
     const job = document.getElementById('patient-job').value.trim();
 
-    // --- BLOK VALIDASI FORM ---
-    if (!name || !age || !job) {
-        alert("Peringatan: Mohon lengkapi data Nama, Umur, dan Pekerjaan sebelum menyimpan sesi!");
-        return; // Hentikan proses eksekusi di sini, jangan lanjut ke Firebase
+    // BLOKIR JIKA ADA FORM YANG KOSONG
+    if (name === "" || age === "" || job === "") {
+        alert("PERINGATAN: Nama, Umur, dan Pekerjaan TIDAK BOLEH KOSONG!");
+        return; 
     }
-    // --------------------------
+
+    // MEMBUAT PATIENT ID DINAMIS (Contoh: "Budi Santoso" -> "patient_budi_santoso")
+    // Ini menyelesaikan masalah ID yang hardcoded
+    const dynamicPatientId = "patient_" + name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
     const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
     const idStatus = getIdentificationStatus(asymPercent);
@@ -146,17 +139,18 @@ btnSave.addEventListener('click', () => {
         timestamp: Date.now()
     };
 
-    saveSession(PATIENT_ID, payload)
+    // Eksekusi penyimpanan ke ID Pasien yang spesifik
+    saveSession(dynamicPatientId, payload)
         .then(() => {
-            alert("Data sesi pengukuran berhasil disimpan!");
+            alert(`Sesi pengukuran berhasil disimpan ke rekam medis: ${name}`);
             
-            // Opsional UX: Kosongkan form kembali setelah data berhasil disimpan
+            // Kosongkan form kembali setelah sukses
             document.getElementById('patient-name').value = '';
             document.getElementById('patient-age').value = '';
             document.getElementById('patient-job').value = '';
+
+            // Tampilkan grafik dan tabel HANYA untuk pasien yang bersangkutan
+            listenToHistory(dynamicPatientId, updateHistoryUI);
         })
-        .catch((error) => {
-            console.error("Gagal menyimpan:", error);
-            alert("Terjadi kesalahan saat menyimpan data ke server.");
-        });
-});
+        .catch((error) => console.error("Gagal menyimpan:", error));
+};
