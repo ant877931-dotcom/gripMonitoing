@@ -122,9 +122,17 @@ listenToHistory(PATIENT_ID, (historyData) => {
 
 // 3. Save Session Action
 btnSave.addEventListener('click', () => {
-    const name = document.getElementById('patient-name').value || "Anonim";
-    const age = document.getElementById('patient-age').value || "20";
-    const job = document.getElementById('patient-job').value || "-";
+    // Ambil nilai dan gunakan trim() untuk menghapus spasi kosong di awal/akhir
+    const name = document.getElementById('patient-name').value.trim();
+    const age = document.getElementById('patient-age').value.trim();
+    const job = document.getElementById('patient-job').value.trim();
+
+    // --- BLOK VALIDASI FORM ---
+    if (!name || !age || !job) {
+        alert("Peringatan: Mohon lengkapi data Nama, Umur, dan Pekerjaan sebelum menyimpan sesi!");
+        return; // Hentikan proses eksekusi di sini, jangan lanjut ke Firebase
+    }
+    // --------------------------
 
     const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
     const idStatus = getIdentificationStatus(asymPercent);
@@ -139,6 +147,16 @@ btnSave.addEventListener('click', () => {
     };
 
     saveSession(PATIENT_ID, payload)
-        .then(() => alert("Data sesi berhasil disimpan!"))
-        .catch((error) => console.error("Gagal menyimpan:", error));
+        .then(() => {
+            alert("Data sesi pengukuran berhasil disimpan!");
+            
+            // Opsional UX: Kosongkan form kembali setelah data berhasil disimpan
+            document.getElementById('patient-name').value = '';
+            document.getElementById('patient-age').value = '';
+            document.getElementById('patient-job').value = '';
+        })
+        .catch((error) => {
+            console.error("Gagal menyimpan:", error);
+            alert("Terjadi kesalahan saat menyimpan data ke server.");
+        });
 });
