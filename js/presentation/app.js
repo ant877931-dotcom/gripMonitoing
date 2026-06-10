@@ -54,13 +54,28 @@ function renderChart(historyData) {
 }
 
 // 1. Listen to Realtime Data
+// Ganti blok listenToRealtime di dalam js/presentation/app.js
+
 listenToRealtime(PATIENT_ID, (data) => {
     currentRealtimeData.left = data.left_grip_kg || 0;
     currentRealtimeData.right = data.right_grip_kg || 0;
 
-    elLeft.innerHTML = `${currentRealtimeData.left} <small>Kg</small>`;
-    elRight.innerHTML = `${currentRealtimeData.right} <small>Kg</small>`;
+    // 1. Update Teks Nilai
+    elLeft.textContent = currentRealtimeData.left.toFixed(1);
+    elRight.textContent = currentRealtimeData.right.toFixed(1);
 
+    // 2. Kalkulasi Rotasi Speedometer (Asumsi nilai maksimal alat adalah 100 Kg)
+    const MAX_GRIP = 100; // Ubah angka ini jika spesifikasi maksimal load cell Anda berbeda
+    
+    // Formula CSS: -135deg (0%) sampai 45deg (100%) = Rentang 180 derajat
+    const leftRotation = Math.min((currentRealtimeData.left / MAX_GRIP) * 180 - 135, 45);
+    const rightRotation = Math.min((currentRealtimeData.right / MAX_GRIP) * 180 - 135, 45);
+
+    // 3. Aplikasikan Animasi CSS
+    document.getElementById('gauge-fill-left').style.transform = `rotate(${leftRotation}deg)`;
+    document.getElementById('gauge-fill-right').style.transform = `rotate(${rightRotation}deg)`;
+
+    // 4. Update Status Koneksi
     if (data.device_status === 'connected') {
         elConn.textContent = "Alat Terhubung";
         elConn.className = "status-badge connected";
@@ -69,6 +84,7 @@ listenToRealtime(PATIENT_ID, (data) => {
         elConn.className = "status-badge disconnected";
     }
 
+    // 5. Update Analisis Asimetri
     const asymPercent = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
     const idStatus = getIdentificationStatus(asymPercent);
     const treatment = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asymPercent);
