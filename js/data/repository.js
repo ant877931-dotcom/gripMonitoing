@@ -12,16 +12,23 @@ export function listenToRealtime(patientId, callback) {
     });
 }
 
-export function listenToHistory(patientId, callback) {
-    const historyRef = ref(db, `monitoring/history/${patientId}`);
+export function listenToAllHistory(callback) {
+    const historyRef = ref(db, `monitoring/history`);
     onValue(historyRef, (snapshot) => {
-        const historyData = [];
+        const allHistoryData = [];
         if (snapshot.exists()) {
-            snapshot.forEach((child) => {
-                historyData.push({ id: child.key, ...child.val() });
+            snapshot.forEach((patientNode) => {
+                const patientId = patientNode.key;
+                patientNode.forEach((recordNode) => {
+                    allHistoryData.push({ 
+                        id: recordNode.key, 
+                        db_patient_id: patientId, 
+                        ...recordNode.val() 
+                    });
+                });
             });
         }
-        callback(historyData);
+        callback(allHistoryData);
     });
 }
 
@@ -29,4 +36,14 @@ export function saveSession(patientId, data) {
     const historyRef = ref(db, `monitoring/history/${patientId}`);
     const newSessionRef = push(historyRef);
     return set(newSessionRef, data);
+}
+
+export function clearRealtimeData(patientId) {
+    const realtimeRef = ref(db, `monitoring/realtime/${patientId}`);
+    return set(realtimeRef, {
+        left_grip_kg: 0,
+        right_grip_kg: 0,
+        device_status: "connected",
+        last_updated: Date.now()
+    });
 }
