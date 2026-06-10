@@ -8,7 +8,9 @@ import {
 
 const HARDWARE_CHANNEL = "patient_001"; 
 let currentRealtimeData = { left: 0, right: 0 };
-let gripChartInstance = null;
+
+// VARIABEL BARU: Menyimpan angka tertinggi (Peak Hold)
+let peakData = { left: 0, right: 0 }; 
 
 let globalHistoryData = [];
 let currentSearchId = ""; 
@@ -20,6 +22,7 @@ const elStatus = document.getElementById('val-status');
 const elRecom = document.getElementById('val-recommendation');
 const elConn = document.getElementById('connection-status');
 const btnSave = document.getElementById('btn-save');
+const btnResetWeb = document.getElementById('btn-reset-web'); // Binding tombol baru
 const historyBody = document.getElementById('history-body');
 
 function renderChart(historyData) {
@@ -97,6 +100,20 @@ function renderFilteredData() {
     }
 }
 
+// Fungsi Reset UI ke Nol
+function resetDashboardUI() {
+    peakData.left = 0;
+    peakData.right = 0;
+    
+    elLeft.textContent = "0.0";
+    elRight.textContent = "0.0";
+    document.getElementById('gauge-fill-left').style.transform = `rotate(-135deg)`;
+    document.getElementById('gauge-fill-right').style.transform = `rotate(-135deg)`;
+    elAsym.textContent = "0%";
+    elStatus.textContent = "-";
+    elRecom.textContent = "Belum ada data genggaman aktif.";
+}
+
 listenToAllHistory((data) => {
     globalHistoryData = data;
     renderFilteredData();
@@ -106,12 +123,17 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
     currentRealtimeData.left = data.left_grip_kg || 0;
     currentRealtimeData.right = data.right_grip_kg || 0;
 
-    elLeft.textContent = currentRealtimeData.left.toFixed(1);
-    elRight.textContent = currentRealtimeData.right.toFixed(1);
+    // LOGIKA PEAK-HOLD: Hanya kunci angka jika lebih besar dari angka sebelumnya
+    if (currentRealtimeData.left > peakData.left) peakData.left = currentRealtimeData.left;
+    if (currentRealtimeData.right > peakData.right) peakData.right = currentRealtimeData.right;
+
+    // Selalu tampilkan angka TERTINGGI (peakData) ke layar, bukan live data
+    elLeft.textContent = peakData.left.toFixed(1);
+    elRight.textContent = peakData.right.toFixed(1);
 
     const MAX_GRIP = 100; 
-    const leftRot = Math.min((currentRealtimeData.left / MAX_GRIP) * 180 - -135 - 270, 45);
-    const rightRot = Math.min((currentRealtimeData.right / MAX_GRIP) * 180 - -135 - 270, 45);
+    const leftRot = Math.min((peakData.left / MAX_GRIP) * 180 - -135 - 270, 45);
+    const rightRot = Math.min((peakData.right / MAX_GRIP) * 180 - -135 - 270, 45);
 
     document.getElementById('gauge-fill-left').style.transform = `rotate(${leftRot}deg)`;
     document.getElementById('gauge-fill-right').style.transform = `rotate(${rightRot}deg)`;
@@ -122,11 +144,20 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
         elConn.textContent = "Alat Terputus"; elConn.className = "status-badge disconnected";
     }
 
-    const asym = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
+    // Kalkulasi Rekomendasi berdasarkan angka puncak yang terkunci
+    const asym = calculateAsymmetryPercentage(peakData.right, peakData.left);
     elAsym.textContent = `${asym}%`;
     elStatus.textContent = getIdentificationStatus(asym);
-    elRecom.textContent = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asym);
+    elRecom.textContent = getTreatmentRecommendation(peakData.right, peakData.left, asym);
 });
+
+// Aksi Tombol Reset Manual
+btnResetWeb.onclick = () => {
+    if(confirm("Apakah Anda yakin ingin membatalkan angka saat ini dan mengulang pengukuran?")) {
+        resetDashboardUI();
+        clearRealtimeData(HARDWARE_CHANNEL).catch(err => console.error(err));
+    }
+};
 
 btnSave.onclick = () => {
     const rawId = document.getElementById('patient-id').value.trim();
@@ -140,12 +171,12 @@ btnSave.onclick = () => {
     }
 
     const cleanPatientId = rawId.replace(/\s+/g, '_').toLowerCase();
-    const asym = calculateAsymmetryPercentage(currentRealtimeData.right, currentRealtimeData.left);
+    const asym = calculateAsymmetryPercentage(peakData.right, peakData.left);
 
     const payload = {
         patient_info: { name, age, job },
-        left_grip_kg: currentRealtimeData.left,
-        right_grip_kg: currentRealtimeData.right,
+        left_grip_kg: peakData.left,     // Simpan angka puncaknya
+        right_grip_kg: peakData.right,   // Simpan angka puncaknya
         asymmetry_percentage: parseFloat(asym),
         status: getIdentificationStatus(asym),
         timestamp: Date.now()
@@ -160,6 +191,10 @@ btnSave.onclick = () => {
             document.getElementById('patient-age').value = '';
             document.getElementById('patient-job').value = '';
             
+            // Hapus hasil tangkapan di web
+            resetDashboardUI();
+            
+            // Hapus sisa data live di server
             clearRealtimeData(HARDWARE_CHANNEL).catch(err => console.error(err));
             
             document.getElementById('search-db-id').value = "";
