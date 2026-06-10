@@ -10,11 +10,11 @@ export function getIdentificationStatus(asymmetryPercentage) {
 }
 
 export function getTreatmentRecommendation(rightGrip, leftGrip, asymmetryPercentage) {
-    if (rightGrip === 0 && leftGrip === 0) return "Belum ada data genggaman.";
+    if (rightGrip === 0 && leftGrip === 0) return "Belum ada data genggaman aktif.";
     if (asymmetryPercentage > 10) {
-        return "Asimetri terdeteksi. Kurangi beban pada area dominan dan pertimbangkan fisioterapi ringan.";
+        return "Asimetri terdeteksi melebihi batas 10%. Disarankan kurangi beban berlebih pada sisi dominan dan konsultasikan untuk latihan kesetimbangan fisioterapi.";
     }
-    return "Kekuatan seimbang. Pertahankan intensitas latihan Anda.";
+    return "Kekuatan genggaman seimbang dan normal. Pertahankan kontinuitas aktivitas fisik Anda.";
 }
 
 export function getNormalGripByAge(age) {
