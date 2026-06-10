@@ -45,12 +45,12 @@ body {
     flex-wrap: wrap;
     gap: 20px;
     padding: 20px;
-    max-width: 1400px;
+    max-width: 1440px;
     margin: 0 auto;
 }
 
-.left-panel { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 20px; }
-.right-panel { flex: 2; min-width: 400px; display: flex; flex-direction: column; gap: 20px; }
+.left-panel { flex: 1; min-width: 340px; display: flex; flex-direction: column; gap: 20px; }
+.right-panel { flex: 2; min-width: 450px; display: flex; flex-direction: column; gap: 20px; }
 
 .card {
     background-color: var(--card-bg);
@@ -70,12 +70,13 @@ body {
 .card-body { padding: 20px; }
 
 .form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.95rem; }
 .form-group input {
-    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px;
+    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; outline: none;
 }
+.form-group input:focus { border-color: var(--primary-green); }
 
-/* Tambahkan atau timpa CSS untuk .gauges di style.css */
+/* Speedometer Analog Layout (Pure CSS) */
 .gauges {
     display: flex;
     justify-content: space-around;
@@ -84,88 +85,94 @@ body {
     padding-top: 10px;
 }
 
-.gauge-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.gauge-wrapper h4 {
-    margin-bottom: 15px;
-    color: var(--text-main);
-}
+.gauge-wrapper { display: flex; flex-direction: column; align-items: center; }
+.gauge-wrapper h4 { margin-bottom: 15px; color: var(--text-main); }
 
 .gauge {
     width: 180px;
-    height: 90px; /* Setengah dari lebar agar menjadi setengah lingkaran */
+    height: 90px;
     position: relative;
     overflow: hidden;
 }
 
-/* Background abu-abu speedometer */
 .gauge-base {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 180px;
-    height: 180px;
+    top: 0; left: 0;
+    width: 180px; height: 180px;
     border-radius: 50%;
-    border: 25px solid #E0E0E0;
+    border: 22px solid #E0E0E0;
     border-bottom-color: transparent;
     border-right-color: transparent;
-    transform: rotate(45deg); /* Mengatur posisi setengah lingkaran ke atas */
+    transform: rotate(45deg);
     box-sizing: border-box;
 }
 
-/* Garis hijau speedometer */
 .gauge-fill {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 180px;
-    height: 180px;
+    top: 0; left: 0;
+    width: 180px; height: 180px;
     border-radius: 50%;
-    border: 25px solid var(--primary-green);
+    border: 22px solid var(--primary-green);
     border-bottom-color: transparent;
     border-right-color: transparent;
-    transform: rotate(-135deg); /* Posisi awal 0% (Kosong) */
-    transition: transform 0.4s ease-out; /* Animasi pergerakan jarum */
+    transform: rotate(-135deg);
+    transition: transform 0.4s ease-out;
     box-sizing: border-box;
 }
 
 .gauge-value {
     position: absolute;
-    bottom: 0;
-    left: 50%;
+    bottom: 0; left: 50%;
     transform: translateX(-50%);
     font-size: 2.2rem;
     font-weight: bold;
     color: var(--primary-green);
 }
 
-.gauge-unit {
-    margin-top: 5px;
-    font-size: 1rem;
-    color: var(--text-muted);
-    font-weight: bold;
-}
+.gauge-unit { margin-top: 5px; font-size: 0.9rem; color: var(--text-muted); font-weight: bold; }
 
 .analysis-box {
     background-color: #F1F8E9; border-left: 4px solid var(--primary-green);
-    padding: 15px; margin-bottom: 20px; border-radius: 4px;
+    padding: 15px; margin: 0 20px 20px 20px; border-radius: 4px;
 }
+.analysis-box p { margin-bottom: 5px; }
 
 .btn-primary {
-    display: block; width: 100%; padding: 12px;
+    display: block; width: calc(100% - 40px); padding: 12px; margin: 0 auto 20px auto;
     background-color: var(--accent-blue); color: white;
-    border: none; border-radius: 4px; font-size: 1rem;
+    border: none; border-radius: 4px; font-size: 1rem; font-weight: bold;
     cursor: pointer; transition: background 0.3s;
 }
 .btn-primary:hover { background-color: #1565C0; }
 
-.chart-card canvas { width: 100% !important; max-height: 350px; }
+/* Fitur Pencarian Layout */
+.search-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px 20px;
+    background-color: #F8F9FA;
+    border-bottom: 1px solid var(--border-color);
+}
 
-.table-responsive { overflow-x: auto; }
+.search-box { flex: 1; min-width: 200px; display: flex; gap: 10px; }
+.search-box input {
+    flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; outline: none;
+}
+.search-box input:focus { border-color: var(--primary-green); }
+
+.btn-secondary {
+    padding: 8px 15px; background-color: var(--text-main); color: white;
+    border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.3s;
+}
+.btn-secondary:hover { background-color: #333333; }
+
+/* Wrapper Grafik Chart.js */
+.chart-wrapper { padding: 20px; width: 100%; border-bottom: 1px solid var(--border-color); }
+.chart-wrapper canvas { width: 100% !important; max-height: 280px; }
+
+.table-responsive { overflow-x: auto; padding-top: 5px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
 th { background-color: #FAFAFA; font-weight: bold; }
+tr:hover { background-color: #F9F9F9; }
