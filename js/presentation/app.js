@@ -1,4 +1,4 @@
-import { listenToRealtime, listenToHistory, saveSession } from '../data/repository.js';
+import { listenToRealtime, listenToAllHistory, saveSession, clearRealtimeData } from '../data/repository.js';
 import { 
     calculateAsymmetryPercentage, 
     getIdentificationStatus, 
@@ -10,7 +10,9 @@ const HARDWARE_CHANNEL = "patient_001";
 let currentRealtimeData = { left: 0, right: 0 };
 let gripChartInstance = null;
 
-// DOM Binding Elements
+let globalHistoryData = [];
+let currentSearchId = ""; 
+
 const elLeft = document.getElementById('val-left');
 const elRight = document.getElementById('val-right');
 const elAsym = document.getElementById('val-asymmetry');
@@ -20,7 +22,6 @@ const elConn = document.getElementById('connection-status');
 const btnSave = document.getElementById('btn-save');
 const historyBody = document.getElementById('history-body');
 
-// Render Engine untuk Chart.js
 function renderChart(historyData) {
     const ctx = document.getElementById('historyChart').getContext('2d');
     if (gripChartInstance) gripChartInstance.destroy();
@@ -30,8 +31,9 @@ function renderChart(historyData) {
     const rightData = [];
     const baselineData = [];
 
-    // Mengambil data riwayat urut waktu normal (kiri ke kanan)
-    historyData.forEach(record => {
+    const ascData = [...historyData].sort((a, b) => a.timestamp - b.timestamp);
+
+    ascData.forEach(record => {
         const d = new Date(record.timestamp);
         labels.push(`${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`);
         leftData.push(record.left_grip_kg);
@@ -50,24 +52,18 @@ function renderChart(historyData) {
                 { label: 'Standar Umur (Kg)', data: baselineData, borderColor: '#121212', borderWidth: 1.5, borderDash: [6, 6], fill: false, pointRadius: 0 }
             ]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            plugins: { tooltip: { mode: 'index', intersect: false } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { mode: 'index', intersect: false } } }
     });
 }
 
-// Handler Pembaruan UI Tabel
 function updateHistoryUI(historyData) {
     historyBody.innerHTML = '';
     if(historyData.length === 0) {
-        historyBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666666;">Tidak ada rekam medis untuk ID pasien ini.</td></tr>`;
+        historyBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666666;">Belum ada data riwayat.</td></tr>`;
         if (gripChartInstance) gripChartInstance.destroy();
         return;
     }
 
-    // Urutkan descending (terbaru di atas) untuk interface tabel
     const sortedData = [...historyData].sort((a, b) => b.timestamp - a.timestamp);
     
     sortedData.forEach(item => {
@@ -76,7 +72,7 @@ function updateHistoryUI(historyData) {
         const pName = item.patient_info?.name || "Anonim";
         
         const tr = document.createElement('tr');
-        tr.setAttribute('data-name', pName.toLowerCase()); // Menyimpan token nama untuk filter lokal
+        tr.setAttribute('data-name', pName.toLowerCase());
         
         tr.innerHTML = `
             <td>${timeStr}</td>
@@ -92,7 +88,20 @@ function updateHistoryUI(historyData) {
     renderChart(historyData);
 }
 
-// 1. Sinkronisasi Data Real-time & Speedometer Meteran
+function renderFilteredData() {
+    if (currentSearchId === "") {
+        updateHistoryUI(globalHistoryData); 
+    } else {
+        const filtered = globalHistoryData.filter(item => item.db_patient_id === currentSearchId);
+        updateHistoryUI(filtered);
+    }
+}
+
+listenToAllHistory((data) => {
+    globalHistoryData = data;
+    renderFilteredData();
+});
+
 listenToRealtime(HARDWARE_CHANNEL, (data) => {
     currentRealtimeData.left = data.left_grip_kg || 0;
     currentRealtimeData.right = data.right_grip_kg || 0;
@@ -100,7 +109,6 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
     elLeft.textContent = currentRealtimeData.left.toFixed(1);
     elRight.textContent = currentRealtimeData.right.toFixed(1);
 
-    // Animasi Speedometer Berdasarkan Batas Atas Beban (Max 100Kg)
     const MAX_GRIP = 100; 
     const leftRot = Math.min((currentRealtimeData.left / MAX_GRIP) * 180 - -135 - 270, 45);
     const rightRot = Math.min((currentRealtimeData.right / MAX_GRIP) * 180 - -135 - 270, 45);
@@ -120,16 +128,14 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
     elRecom.textContent = getTreatmentRecommendation(currentRealtimeData.right, currentRealtimeData.left, asym);
 });
 
-// 2. Aksi Tombol Simpan Sesi (Dengan Validasi Lapisan Formulir)
 btnSave.onclick = () => {
     const rawId = document.getElementById('patient-id').value.trim();
     const name = document.getElementById('patient-name').value.trim();
     const age = document.getElementById('patient-age').value.trim();
     const job = document.getElementById('patient-job').value.trim();
 
-    // BLOKIR JIKA FORMULIR KOSONG
     if (rawId === "" || name === "" || age === "" || job === "") {
-        alert("PERINGATAN: ID Pasien, Nama, Umur, dan Pekerjaan wajib diisi lengkap sebelum menyimpan data!");
+        alert("PERINGATAN: ID Pasien, Nama, Umur, dan Pekerjaan wajib diisi!");
         return; 
     }
 
@@ -147,38 +153,52 @@ btnSave.onclick = () => {
 
     saveSession(cleanPatientId, payload)
         .then(() => {
-            alert(`Sesi berhasil disimpan ke ID: ${rawId}`);
-            // Kosongkan form kembali
+            alert(`Sesi berhasil disimpan ke rekam medis ID: ${rawId}`);
+            
             document.getElementById('patient-id').value = '';
             document.getElementById('patient-name').value = '';
             document.getElementById('patient-age').value = '';
             document.getElementById('patient-job').value = '';
             
-            // Tampilkan manifes riwayat untuk pasien bersangkutan
-            listenToHistory(cleanPatientId, updateHistoryUI);
+            clearRealtimeData(HARDWARE_CHANNEL).catch(err => console.error(err));
+            
+            document.getElementById('search-db-id').value = "";
+            currentSearchId = ""; 
+            renderFilteredData();
         })
-        .catch((err) => console.error("Gagal melakukan transmisi data:", err));
+        .catch((err) => console.error("Gagal menyimpan data:", err));
 };
 
-// 3. Fitur Pencarian Database Melalui ID Pasien
 document.getElementById('btn-search-db').onclick = () => {
     const targetId = document.getElementById('search-db-id').value.trim();
+    
     if (targetId === "") {
-        alert("Silakan masukkan ID Pasien terlebih dahulu.");
+        currentSearchId = "";
+        renderFilteredData();
         return;
     }
+    
     const cleanSearchId = targetId.replace(/\s+/g, '_').toLowerCase();
-    listenToHistory(cleanSearchId, updateHistoryUI);
+    const dataExists = globalHistoryData.some(item => item.db_patient_id === cleanSearchId);
+    
+    if (!dataExists) {
+        alert(`Data riwayat untuk ID Pasien "${targetId}" tidak ditemukan! Menampilkan semua data...`);
+        document.getElementById('search-db-id').value = ""; 
+        currentSearchId = ""; 
+    } else {
+        currentSearchId = cleanSearchId;
+    }
+    
+    renderFilteredData();
 };
 
-// 4. Fitur Penapis (Filtering) Lokal Berdasarkan Karakter Nama
 document.getElementById('filter-table-name').addEventListener('keyup', function(e) {
     const token = e.target.value.toLowerCase();
     const rows = historyBody.getElementsByTagName('tr');
 
     for (let i = 0; i < rows.length; i++) {
         const rowName = rows[i].getAttribute('data-name');
-        if(!rowName) continue; // Abaikan jika baris kosong bawaan
+        if(!rowName) continue; 
         
         if (rowName.includes(token)) {
             rows[i].style.display = "";
