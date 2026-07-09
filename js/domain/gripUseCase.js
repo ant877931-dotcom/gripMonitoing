@@ -6,15 +6,26 @@ export function calculateAsymmetryPercentage(rightGrip, leftGrip) {
 }
 
 export function getIdentificationStatus(asymmetryPercentage) {
-    return asymmetryPercentage > 10 ? "Asimetris / Indikasi Cedera" : "Simetris / Normal";
+    if (asymmetryPercentage <= 10) return "Simetris / Normal";
+    if (asymmetryPercentage <= 20) return "Asimetris Ringan";
+    if (asymmetryPercentage <= 30) return "Asimetris Sedang";
+    return "Asimetris Berat";
 }
 
 export function getTreatmentRecommendation(rightGrip, leftGrip, asymmetryPercentage) {
     if (rightGrip === 0 && leftGrip === 0) return "Belum ada data genggaman aktif.";
-    if (asymmetryPercentage > 10) {
-        return "Asimetri terdeteksi melebihi batas 10%. Disarankan kurangi beban berlebih pada sisi dominan dan konsultasikan untuk latihan kesetimbangan fisioterapi.";
+    
+    if (asymmetryPercentage <= 10) {
+        return "Kekuatan genggaman seimbang dan normal. Pertahankan kontinuitas aktivitas fisik Anda.";
     }
-    return "Kekuatan genggaman seimbang dan normal. Pertahankan kontinuitas aktivitas fisik Anda.";
+    
+    const weakHand = rightGrip < leftGrip ? "kanan" : "kiri";
+    
+    if (asymmetryPercentage <= 30) {
+        return `Asimetri ${asymmetryPercentage <= 20 ? 'ringan' : 'sedang'} terdeteksi. Lakukan latihan untuk penguatan pada bagian tangan ${weakHand} yang lemah.`;
+    }
+    
+    return `Asimetri berat terdeteksi pada tangan ${weakHand}. Dianjurkan ke dokter atau klinik yang menangani bidang ini.`;
 }
 
 export function getNormalGripByAge(age) {
