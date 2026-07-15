@@ -68,7 +68,7 @@ function renderChart(historyData) {
 function updateHistoryUI(historyData) {
     historyBody.innerHTML = '';
     if(historyData.length === 0) {
-        historyBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #666666;">Belum ada data riwayat.</td></tr>`;
+        historyBody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #666666;">Belum ada data riwayat.</td></tr>`;
         if (gripChartInstance) gripChartInstance.destroy();
         return;
     }
@@ -87,9 +87,12 @@ function updateHistoryUI(historyData) {
         const tr = document.createElement('tr');
         tr.setAttribute('data-name', pName.toLowerCase());
         
+        const ageVal = item.patient_info?.age || "-";
+        
         tr.innerHTML = `
             <td>${timeStr}</td>
             <td><strong>${pName}</strong></td>
+            <td>${ageVal}</td>
             <td>${genderStr}</td>
             <td>${item.left_grip_kg.toFixed(1)}</td>
             <td>${item.right_grip_kg.toFixed(1)}</td>
