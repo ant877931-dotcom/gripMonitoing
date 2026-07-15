@@ -33,6 +33,14 @@
                         <input type="number" id="patient-age" placeholder="Contoh: 25">
                     </div>
                     <div class="form-group">
+                        <label for="patient-gender">Jenis Kelamin</label>
+                        <select id="patient-gender" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit;">
+                            <option value="">-- Pilih --</option>
+                            <option value="L">Laki-Laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="patient-job">Pekerjaan</label>
                         <input type="text" id="patient-job" placeholder="Pekerjaan...">
                     </div>
@@ -275,6 +283,7 @@
                             <tr>
                                 <th>Waktu</th>
                                 <th>Nama</th>
+                                <th>Gender</th>
                                 <th>Kiri (Kg)</th>
                                 <th>Kanan (Kg)</th>
                                 <th>Asimetri</th>
@@ -283,7 +292,7 @@
                         </thead>
                         <tbody id="history-body">
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #666666;">Memuat data riwayat...</td>
+                                <td colspan="7" style="text-align: center; color: #666666;">Memuat data riwayat...</td>
                             </tr>
                         </tbody>
                     </table>

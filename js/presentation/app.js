@@ -3,7 +3,7 @@ import {
     calculateAsymmetryPercentage, 
     getIdentificationStatus, 
     getTreatmentRecommendation,
-    getNormalGripByAge
+    getNormalGrip
 } from '../domain/gripUseCase.js';
 
 const HARDWARE_CHANNEL = "patient_001"; 
@@ -47,7 +47,8 @@ function renderChart(historyData) {
         leftData.push(record.left_grip_kg);
         rightData.push(record.right_grip_kg);
         const age = record.patient_info?.age || 20;
-        baselineData.push(getNormalGripByAge(age));
+        const gender = record.patient_info?.gender || 'L';
+        baselineData.push(getNormalGrip(age, gender));
     });
 
     gripChartInstance = new Chart(ctx, {
@@ -67,7 +68,7 @@ function renderChart(historyData) {
 function updateHistoryUI(historyData) {
     historyBody.innerHTML = '';
     if(historyData.length === 0) {
-        historyBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #666666;">Belum ada data riwayat.</td></tr>`;
+        historyBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #666666;">Belum ada data riwayat.</td></tr>`;
         if (gripChartInstance) gripChartInstance.destroy();
         return;
     }
@@ -78,6 +79,10 @@ function updateHistoryUI(historyData) {
         const d = new Date(item.timestamp);
         const timeStr = `${d.getDate()}/${d.getMonth()+1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
         const pName = item.patient_info?.name || "Anonim";
+        const genderVal = item.patient_info?.gender;
+        let genderStr = "-";
+        if(genderVal === 'L') genderStr = "Laki-laki";
+        else if (genderVal === 'P') genderStr = "Perempuan";
         
         const tr = document.createElement('tr');
         tr.setAttribute('data-name', pName.toLowerCase());
@@ -85,6 +90,7 @@ function updateHistoryUI(historyData) {
         tr.innerHTML = `
             <td>${timeStr}</td>
             <td><strong>${pName}</strong></td>
+            <td>${genderStr}</td>
             <td>${item.left_grip_kg.toFixed(1)}</td>
             <td>${item.right_grip_kg.toFixed(1)}</td>
             <td>${item.asymmetry_percentage}%</td>
@@ -97,12 +103,21 @@ function updateHistoryUI(historyData) {
 }
 
 function renderFilteredData() {
-    if (currentSearchId === "") {
-        updateHistoryUI(globalHistoryData); 
-    } else {
-        const filtered = globalHistoryData.filter(item => item.db_patient_id === currentSearchId);
-        updateHistoryUI(filtered);
+    let filtered = globalHistoryData;
+    
+    if (currentSearchId !== "") {
+        filtered = filtered.filter(item => item.db_patient_id === currentSearchId);
     }
+    
+    const nameToken = document.getElementById('filter-table-name').value.toLowerCase();
+    if (nameToken !== "") {
+        filtered = filtered.filter(item => {
+            const pName = (item.patient_info?.name || "anonim").toLowerCase();
+            return pName.includes(nameToken);
+        });
+    }
+    
+    updateHistoryUI(filtered);
 }
 
 function resetDashboardUI() {
@@ -163,10 +178,11 @@ btnSave.onclick = () => {
     const rawId = document.getElementById('patient-id').value.trim();
     const name = document.getElementById('patient-name').value.trim();
     const age = document.getElementById('patient-age').value.trim();
+    const gender = document.getElementById('patient-gender').value.trim();
     const job = document.getElementById('patient-job').value.trim();
 
-    if (rawId === "" || name === "" || age === "" || job === "") {
-        alert("PERINGATAN: ID Pasien, Nama, Umur, dan Pekerjaan wajib diisi!");
+    if (rawId === "" || name === "" || age === "" || gender === "" || job === "") {
+        alert("PERINGATAN: ID Pasien, Nama, Umur, Jenis Kelamin, dan Pekerjaan wajib diisi!");
         return; 
     }
 
@@ -174,7 +190,7 @@ btnSave.onclick = () => {
     const asym = calculateAsymmetryPercentage(peakData.right, peakData.left);
 
     const payload = {
-        patient_info: { name, age, job },
+        patient_info: { name, age, gender, job },
         left_grip_kg: peakData.left,
         right_grip_kg: peakData.right,
         asymmetry_percentage: parseFloat(asym),
@@ -189,12 +205,14 @@ btnSave.onclick = () => {
             document.getElementById('patient-id').value = '';
             document.getElementById('patient-name').value = '';
             document.getElementById('patient-age').value = '';
+            document.getElementById('patient-gender').value = '';
             document.getElementById('patient-job').value = '';
             
             resetDashboardUI();
             clearRealtimeData(HARDWARE_CHANNEL).catch(err => console.error(err));
             
             document.getElementById('search-db-id').value = "";
+            document.getElementById('filter-table-name').value = "";
             currentSearchId = ""; 
             renderFilteredData();
         })
@@ -224,18 +242,6 @@ document.getElementById('btn-search-db').onclick = () => {
     renderFilteredData();
 };
 
-document.getElementById('filter-table-name').addEventListener('keyup', function(e) {
-    const token = e.target.value.toLowerCase();
-    const rows = historyBody.getElementsByTagName('tr');
-
-    for (let i = 0; i < rows.length; i++) {
-        const rowName = rows[i].getAttribute('data-name');
-        if(!rowName) continue; 
-        
-        if (rowName.includes(token)) {
-            rows[i].style.display = "";
-        } else {
-            rows[i].style.display = "none";
-        }
-    }
+document.getElementById('filter-table-name').addEventListener('input', function() {
+    renderFilteredData();
 });
