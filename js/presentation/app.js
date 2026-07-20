@@ -3,6 +3,7 @@ import {
     calculateAsymmetryPercentage, 
     getIdentificationStatus, 
     getTreatmentRecommendation,
+    getConclusion,
     getNormalGrip
 } from '../domain/gripUseCase.js';
 
@@ -133,6 +134,7 @@ function resetDashboardUI() {
     document.getElementById('gauge-fill-right').style.transform = `rotate(-135deg)`;
     elAsym.textContent = "0%";
     elStatus.textContent = "-";
+    document.getElementById('val-conclusion').textContent = "-";
     elRecom.textContent = "Belum ada data genggaman aktif.";
 }
 
@@ -168,6 +170,11 @@ listenToRealtime(HARDWARE_CHANNEL, (data) => {
     elAsym.textContent = `${asym}%`;
     elStatus.textContent = getIdentificationStatus(asym);
     elRecom.textContent = getTreatmentRecommendation(peakData.right, peakData.left, asym);
+
+    const genderVal = document.getElementById('patient-gender').value;
+    const ageVal = document.getElementById('patient-age').value;
+    const jobVal = document.getElementById('patient-job').value;
+    document.getElementById('val-conclusion').textContent = getConclusion(genderVal, ageVal, jobVal, asym);
 });
 
 btnResetWeb.onclick = () => {
@@ -247,4 +254,15 @@ document.getElementById('btn-search-db').onclick = () => {
 
 document.getElementById('filter-table-name').addEventListener('input', function() {
     renderFilteredData();
+});
+
+// Update Kesimpulan when form inputs change
+['patient-gender', 'patient-age', 'patient-job'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+        const asym = calculateAsymmetryPercentage(peakData.right, peakData.left);
+        const genderVal = document.getElementById('patient-gender').value;
+        const ageVal = document.getElementById('patient-age').value;
+        const jobVal = document.getElementById('patient-job').value;
+        document.getElementById('val-conclusion').textContent = getConclusion(genderVal, ageVal, jobVal, asym);
+    });
 });

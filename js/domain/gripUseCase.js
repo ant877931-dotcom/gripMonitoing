@@ -16,16 +16,29 @@ export function getTreatmentRecommendation(rightGrip, leftGrip, asymmetryPercent
     if (rightGrip === 0 && leftGrip === 0) return "Belum ada data genggaman aktif.";
     
     if (asymmetryPercentage <= 10) {
-        return "Kekuatan genggaman seimbang dan normal. Pertahankan kontinuitas aktivitas fisik Anda.";
+        return "Kekuatan genggaman seimbang dan normal. Lanjutkan aktivitas harian dan olahraga ringan secara rutin.";
     }
     
     const weakHand = rightGrip < leftGrip ? "kanan" : "kiri";
     
     if (asymmetryPercentage <= 30) {
-        return `Asimetri ${asymmetryPercentage <= 20 ? 'ringan' : 'sedang'} terdeteksi. Lakukan latihan untuk penguatan pada bagian tangan ${weakHand} yang lemah.`;
+        return `Disarankan melakukan latihan penguatan untuk tangan ${weakHand} yang terdeteksi lebih lemah, seperti meremas stress ball, latihan hand grip, atau wrist curls 3-5 kali per minggu.`;
     }
     
-    return `Asimetri berat terdeteksi pada tangan ${weakHand}. Dianjurkan ke dokter atau klinik yang menangani bidang ini.`;
+    return `KONSULTASI AHLI: Asimetri berat terdeteksi pada tangan ${weakHand}. Sangat disarankan untuk segera berkonsultasi ke dokter, fisioterapis, atau ahli terkait untuk penanganan tepat. Hindari aktivitas berat pada tangan tersebut.`;
+}
+
+export function getConclusion(gender, age, job, asymmetryPercentage) {
+    if (!gender || !age || !job) return "Mohon lengkapi data Umur, Jenis Kelamin, dan Pekerjaan untuk melihat kesimpulan.";
+
+    const genderStr = gender === 'L' ? 'Laki-laki' : (gender === 'P' ? 'Perempuan' : '-');
+    
+    let tingkat = "";
+    if (asymmetryPercentage <= 20) tingkat = "Rendah";
+    else if (asymmetryPercentage <= 30) tingkat = "Sedang";
+    else tingkat = "Tinggi";
+
+    return `Berdasarkan jenis kelamin ${genderStr}, usia ${age} tahun, dan jenis pekerjaan yang termasuk dalam kategori ${job}, tingkat asimetri dari hasil tersebut tergolong ${tingkat}.`;
 }
 
 export function getNormalGrip(age, gender) {

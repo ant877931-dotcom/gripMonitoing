@@ -42,7 +42,11 @@
                     </div>
                     <div class="form-group">
                         <label for="patient-job">Pekerjaan</label>
-                        <input type="text" id="patient-job" placeholder="Pekerjaan...">
+                        <select id="patient-job" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit;">
+                            <option value="">-- Pilih --</option>
+                            <option value="Pekerjaan Fisik">Pekerjaan Fisik (Kerja Kasar)</option>
+                            <option value="Pekerjaan Kantoran">Pekerjaan Kantoran</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -248,6 +252,7 @@
                 <div class="analysis-box">
                     <p>Asimetri: <strong id="val-asymmetry">0%</strong></p>
                     <p>Status: <strong id="val-status">-</strong></p>
+                    <p>Kesimpulan: <span id="val-conclusion" style="font-weight: 500;">-</span></p>
                     <p>Rekomendasi: <span id="val-recommendation">-</span></p>
                 </div>
                 <div style="display: flex; gap: 10px; margin: 0 20px 20px 20px;">
